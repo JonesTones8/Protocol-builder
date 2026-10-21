@@ -429,7 +429,7 @@
       return;
     }
     if (!act) return;
-    if (act.dataset.act === 'photo') { e.stopPropagation(); return pickPhoto(id); }
+    if (act.dataset.act === 'photo') { e.stopPropagation(); return openPhotoPicker(id); }
     if (act.dataset.act === 'detail') return openDetail(id);
     if (act.dataset.act === 'up') return moveExercise(idx, idx - 1);
     if (act.dataset.act === 'down') return moveExercise(idx, idx + 1);
@@ -505,6 +505,7 @@
   function savePhoto(id, file) {
     toast('Saving photo…');
     Photos.save(id, file).then(function () {
+      if ($('pp-results')) closeModal();  // uploaded from the photo picker
       afterPhotoChange(id);
       toast('Photo saved for “' + (exById(id).name || 'custom exercise') + '”');
     }).catch(function (err) { toast(err.message || 'Couldn’t save that photo'); });
@@ -515,6 +516,88 @@
       toast('Photo removed. Showing the illustration again.');
     });
   }
+  // ── Free photos (free-exercise-db, public domain) ───────────
+  var FREE_DB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/';
+  var freeDbPromise = null;
+  function freeDb() {
+    if (!freeDbPromise) {
+      freeDbPromise = fetch(FREE_DB + 'dist/exercises.json')
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .catch(function (e) { freeDbPromise = null; throw e; });
+    }
+    return freeDbPromise;
+  }
+
+  var STOP = /^(with|the|a|an|and|of|to|on|in|for|at|or|each|side|exercise|band|resistance|rom|aarom|arom|prom)$/;
+  function tokens(s) {
+    return s.toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^a-z]+/).filter(function (w) { return w.length > 1 && !STOP.test(w); });
+  }
+  // Words match if equal, or one is a prefix of the other (raise/raises, curl/curls).
+  function wordMatch(a, b) {
+    return a === b || (a.length >= 4 && b.length >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0));
+  }
+  function searchFree(list, query) {
+    var q = tokens(query);
+    if (!q.length) return [];
+    return list.map(function (x) {
+      var n = tokens(x.name), hit = 0;
+      q.forEach(function (w) { if (n.some(function (v) { return wordMatch(w, v); })) hit++; });
+      return { x: x, score: hit / q.length - n.length * 0.01 };
+    }).filter(function (r) { return r.score > 0.3; })
+      .sort(function (a, b) { return b.score - a.score; })
+      .slice(0, 12)
+      .map(function (r) { return r.x; });
+  }
+
+  function openPhotoPicker(id) {
+    var ex = exById(id);
+    ui.detailId = null;
+    openModal(
+      '<div class="modal-head"><h2>Photo for ' + esc(ex.name || 'custom exercise') + '</h2>' +
+        '<button class="icon-btn" data-close title="Close">' + icon('x') + '</button></div>' +
+      '<div class="modal-body">' +
+        '<button class="btn btn-primary upload-own" id="pp-upload">' + icon('camera') + 'Take or upload your own photo</button>' +
+        '<div class="section-label">Or pick a free photo</div>' +
+        '<div class="search pp-search">' + '<svg><use href="#i-search"/></svg>' +
+          '<input type="search" id="pp-q" value="' + esc(ex.name || '') + '" placeholder="Search free photos…" aria-label="Search free photos"></div>' +
+        '<div class="pp-results" id="pp-results"><p class="muted-p">Loading free photos…</p></div>' +
+        '<p class="photo-note">From <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener">free-exercise-db</a> (public domain). It’s gym-focused, so many PT exercises won’t have a match. Try a simpler search like “bridge” or “calf raise”.</p>' +
+      '</div>', true);
+    $('pp-upload').onclick = function () { pickPhoto(id); };
+
+    var timer = null;
+    function run() {
+      var q = $('pp-q') && $('pp-q').value;
+      freeDb().then(function (list) {
+        var box = $('pp-results');
+        if (!box) return;
+        var found = searchFree(list, q || '');
+        box.innerHTML = found.length ? found.map(function (x) {
+          return '<div class="pp-item"><div class="pp-name">' + esc(x.name) + '</div><div class="pp-imgs">' +
+            x.images.map(function (src, i) {
+              return '<button class="pp-img" data-src="' + esc(src) + '" title="Use this photo">' +
+                '<img src="' + FREE_DB + 'exercises/' + esc(src) + '" alt="' + esc(x.name) + (i ? ' (end)' : ' (start)') + '" loading="lazy">' +
+                '<span>' + (i ? 'End' : 'Start') + '</span></button>';
+            }).join('') + '</div></div>';
+        }).join('') : '<p class="muted-p">No free photos match “' + esc(q) + '”. Try fewer or simpler words.</p>';
+      }).catch(function () {
+        if ($('pp-results')) $('pp-results').innerHTML = '<p class="muted-p">Couldn’t reach the free photo library. Check your connection and try again.</p>';
+      });
+    }
+    $('pp-q').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(run, 200); });
+    $('pp-results').addEventListener('click', function (e) {
+      var b = e.target.closest('.pp-img');
+      if (!b) return;
+      b.classList.add('saving');
+      fetch(FREE_DB + 'exercises/' + b.dataset.src)
+        .then(function (r) { if (!r.ok) throw new Error(); return r.blob(); })
+        .then(function (blob) { return Photos.save(id, blob); })
+        .then(function () { closeModal(); afterPhotoChange(id); toast('Photo saved'); })
+        .catch(function () { b.classList.remove('saving'); toast('Couldn’t download that photo. Try another.'); });
+    });
+    run();
+  }
+
   function afterPhotoChange(id) {
     refreshRow(id);
     if (inProgram(id)) renderProgram();
@@ -563,7 +646,7 @@
         (inLib ? '<button class="btn btn-ghost" id="d-fav">' + icon('star') + (fav ? 'Unfavorite' : 'Favorite') + '</button>' +
           '<button class="btn ' + (added ? '' : 'btn-primary') + '" id="d-add">' + icon(added ? 'x' : 'plus') + (added ? 'Remove from program' : 'Add to program') + '</button>' : '') +
       '</div>');
-    $('d-photo').onclick = function () { pickPhoto(id); };
+    $('d-photo').onclick = function () { openPhotoPicker(id); };
     if (inLib) {
       $('d-fav').onclick = function () { toggleFav(id); };
       $('d-add').onclick = function () { added ? removeExercise(id) : addExercise(id); openDetail(id); };
