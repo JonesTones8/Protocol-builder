@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HEP Builder</title>
+<meta name="description" content="Build and print home exercise programs.">
+<meta name="theme-color" content="#146B63">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- Icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.7L9 4.5h6L16.8 7h2.7A1.5 1.5 0 0 1 21 8.5v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><circle cx="12" cy="13" r="3.6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4h6v3"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M4 19h16"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 19h16"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="2"/><path d="m8 21 3-6.5 3 2.5v4M11 14.5 12.5 9l3.5 3 3-1M12.5 9 8.5 10 6 13"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h13M4.5 15.5 14 6l5 5-7.5 7.5H8z"/></symbol>
+  </defs>
+</svg>
+
+<div class="shell" id="shell" data-view="library">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"><svg><use href="#i-logo"/></svg></span>
+      <div>HEP Builder<small>Home exercise programs</small></div>
+    </div>
+    <div class="topbar-actions">
+      <span class="save-status" id="save-status">Saved on this device</span>
+      <button class="btn btn-ghost" id="btn-programs" title="Saved programs"><svg><use href="#i-folder"/></svg><span class="label-wide">Programs</span></button>
+      <button class="btn btn-ghost" id="btn-backup" title="Back up or restore"><svg><use href="#i-download"/></svg><span class="label-wide">Backup</span></button>
+      <button class="icon-btn" id="btn-theme" title="Toggle dark mode"><svg><use href="#i-moon"/></svg></button>
+      <button class="btn btn-primary" id="btn-print"><svg><use href="#i-print"/></svg><span class="label-wide">Print</span></button>
+    </div>
+  </header>
+
+  <aside class="library" aria-label="Exercise library">
+    <div class="lib-head">
+      <div class="lib-title"><h2>Exercise library</h2><span id="lib-count"></span></div>
+      <div class="search" id="search-wrap">
+        <svg><use href="#i-search"/></svg>
+        <input type="search" id="search" placeholder="Search exercises, positions, cues…" autocomplete="off" aria-label="Search exercises">
+        <button class="icon-btn clear-search" id="clear-search" title="Clear search"><svg><use href="#i-x"/></svg></button>
+      </div>
+      <button class="custom-btn" id="btn-custom"><svg><use href="#i-plus"/></svg>Add custom exercise</button>
+    </div>
+    <div class="chips" id="chips" role="tablist" aria-label="Categories"></div>
+    <div class="ex-list" id="ex-list"></div>
+  </aside>
+
+  <main class="workspace" id="workspace">
+    <div class="workspace-inner">
+
+      <section class="card patient">
+        <div class="patient-head">
+          <div>
+            <h1>Home Exercise Program</h1>
+            <p id="patient-sub">Patient details print at the top of the handout.</p>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" id="btn-save-quick"><svg><use href="#i-folder"/></svg>Save program</button>
+            <button class="btn btn-danger-ghost btn-sm" id="btn-clear-all"><svg><use href="#i-eraser"/></svg>New patient</button>
+          </div>
+        </div>
+        <div class="patient-grid">
+          <div class="field"><label for="pt-name">Patient name</label><input class="input" id="pt-name" placeholder="Last, First" autocomplete="off"></div>
+          <div class="field"><label for="pt-date">Date</label><input class="input" type="date" id="pt-date"></div>
+          <div class="field"><label for="pt-therapist">Therapist</label><input class="input" id="pt-therapist" placeholder="Your name"></div>
+          <div class="field"><label for="pt-dx">Diagnosis</label><input class="input" id="pt-dx" placeholder="ICD / description" autocomplete="off"></div>
+        </div>
+      </section>
+
+      <section class="card instr-card" id="instr-card">
+        <button class="instr-summary" id="instr-toggle" aria-expanded="false">
+          <h3>Patient instructions</h3>
+          <span class="muted" id="instr-preview">Ice, heat, pain guidelines…</span>
+          <svg class="chev"><use href="#i-down"/></svg>
+        </button>
+        <div class="instr-body">
+          <div class="quick" id="quick"></div>
+          <div class="with-mic">
+            <textarea class="textarea" id="pt-instructions" rows="4" placeholder="Type instructions, or tap the quick-add buttons above…"></textarea>
+            <button class="mic" type="button" data-mic-target="pt-instructions" title="Dictate"><svg><use href="#i-mic"/></svg></button>
+          </div>
+          <div class="hint"><span>Prints above the exercises.</span><button class="btn btn-ghost btn-sm" id="btn-clear-instr">Clear</button></div>
+        </div>
+      </section>
+
+      <div class="prog-toolbar">
+        <h2>Exercises <span class="pill" id="ex-count">0</span></h2>
+        <div class="tools">
+          <button class="btn btn-ghost btn-sm" id="btn-clear-ex"><svg><use href="#i-trash"/></svg>Clear exercises</button>
+        </div>
+      </div>
+      <div class="prog-list" id="prog-list"></div>
+    </div>
+  </main>
+
+  <nav class="mobile-tabs" aria-label="Views">
+    <button data-view="library" class="active"><svg><use href="#i-grid"/></svg>Library</button>
+    <button data-view="program"><svg><use href="#i-list"/></svg><span>Program<span class="badge" id="tab-badge" hidden>0</span></span></button>
+  </nav>
+</div>
+
+<!-- Modals -->
+<div class="modal-backdrop" id="modal" role="dialog" aria-modal="true">
+  <div class="modal" id="modal-box"></div>
+</div>
+<input type="file" id="photo-input" accept="image/*" hidden>
+<input type="file" id="backup-input" accept="application/json,.json" hidden>
+<div class="toast" id="toast" role="status"></div>
+<div id="print-view"></div>
+
+<script src="js/exercises.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
