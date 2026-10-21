@@ -37,6 +37,9 @@
     <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
     <symbol id="i-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="2"/><path d="m8 21 3-6.5 3 2.5v4M11 14.5 12.5 9l3.5 3 3-1M12.5 9 8.5 10 6 13"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 4h12v17l-6-4-6 4z"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
     <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h13M4.5 15.5 14 6l5 5-7.5 7.5H8z"/></symbol>
   </defs>
@@ -51,7 +54,8 @@
     </div>
     <div class="topbar-actions">
       <span class="save-status" id="save-status">Saved on this device</span>
-      <button class="btn btn-ghost" id="btn-programs" title="Saved programs"><svg><use href="#i-folder"/></svg><span class="label-wide">Programs</span></button>
+      <button class="btn btn-ghost" id="btn-programs" title="Templates and saved programs"><svg><use href="#i-folder"/></svg><span class="label-wide">Templates</span></button>
+      <button class="btn btn-ghost" id="btn-handout" title="Handout settings"><svg><use href="#i-settings"/></svg><span class="label-wide">Handout</span></button>
       <button class="btn btn-ghost" id="btn-backup" title="Back up or restore"><svg><use href="#i-download"/></svg><span class="label-wide">Backup</span></button>
       <button class="icon-btn" id="btn-theme" title="Toggle dark mode"><svg><use href="#i-moon"/></svg></button>
       <button class="btn btn-primary" id="btn-print"><svg><use href="#i-print"/></svg><span class="label-wide">Print</span></button>
@@ -82,7 +86,7 @@
             <p id="patient-sub">Patient details print at the top of the handout.</p>
           </div>
           <div style="display:flex;gap:4px">
-            <button class="btn btn-ghost btn-sm" id="btn-save-quick"><svg><use href="#i-folder"/></svg>Save program</button>
+            <button class="btn btn-ghost btn-sm" id="btn-save-quick"><svg><use href="#i-bookmark"/></svg>Save or use template</button>
             <button class="btn btn-danger-ghost btn-sm" id="btn-clear-all"><svg><use href="#i-eraser"/></svg>New patient</button>
           </div>
         </div>

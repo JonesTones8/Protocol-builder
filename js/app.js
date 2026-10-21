@@ -1,9 +1,21 @@
 (function () {
   'use strict';
 
-  var LIBRARY = window.LIBRARY;
-  var BY_ID = {};
-  LIBRARY.forEach(function (e) { BY_ID[e.id] = e; });
+  // The built-in library, plus your own exercises (state.myLib) and your edits
+  // to built-in defaults (state.edits). LIBRARY/BY_ID are the merged view.
+  var BASE = window.LIBRARY;
+  var LIBRARY = BASE, BY_ID = {};
+  var MY_CAT = 'My exercises';
+
+  function rebuildLibrary() {
+    var mine = Object.keys(state.myLib).map(function (k) { return state.myLib[k]; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+    LIBRARY = mine.concat(BASE.map(function (e) {
+      return state.edits[e.id] ? Object.assign({}, e, state.edits[e.id], { edited: true }) : e;
+    }));
+    BY_ID = {};
+    LIBRARY.forEach(function (e) { BY_ID[e.id] = e; });
+  }
 
   var STORE_KEY = 'hep_builder_v1';
   var LEGACY_KEY = 'pt_rx_v2';
@@ -14,7 +26,8 @@
     'Elbow & Wrist': '#D08A1E', 'Core & Lumbar': '#C2477A', 'Hip': '#6A8F2E', 'Knee': '#1F7A6B',
     'Ankle & Foot': '#B45A3C', 'Balance & Functional': '#5B6CC9', 'Neuro & Vestibular': '#9B59B6',
     'Pediatric': '#E5A00F', 'Pelvic Floor & Womens Health': '#C0587E', 'Post-Op & General': '#5E7487',
-    'Sport-Specific & Plyometric': '#D9483B', 'Amputee & Prosthetic': '#7A6A58'
+    'Sport-Specific & Plyometric': '#D9483B', 'Amputee & Prosthetic': '#7A6A58',
+    'My exercises': '#146B63', 'Custom': '#146B63'
   };
 
   var QUICK_INSTRS = [
@@ -40,11 +53,19 @@
     sets: ['1', '2', '3', '4', '5', '6'],
     reps: ['5', '8', '10', '12', '15', '20', '25', '30', '3 each side', '5 each side', '10 each side', '12 each side', '15 each side', '10 each leg', '15 each leg', '20 circles', 'A-Z each foot'],
     hold: ['—', '2 sec', '3 sec', '5 sec', '10 sec', '15 sec', '20 sec', '30 sec', '45 sec', '60 sec', '20-30 sec', '30-60 sec'],
-    freq: ['Daily', '2x/day', '3x/day', 'Every 1-2 hrs', 'Every other day', '3x/week', '4x/week', '5x/week', 'As needed']
+    freq: ['Daily', '2x/day', '3x/day', 'Every 1-2 hrs', 'Every other day', '3x/week', '4x/week', '5x/week', 'As needed'],
+    side: ['—', 'Left', 'Right', 'Both', 'Alternate', 'Affected side'],
+    equip: ['—', 'Yellow band', 'Red band', 'Green band', 'Blue band', 'Black band', '1 lb', '2 lb', '3 lb', '5 lb', 'Ball', 'Towel', 'Strap', 'Foam roller', 'Step', 'Chair']
   };
+  var FIELD_LABELS = { sets: 'Sets', reps: 'Reps / time', hold: 'Hold', freq: 'Frequency', side: 'Side', equip: 'Equipment' };
+  function isSet(v) { return v != null && String(v).trim() !== '' && v !== '—'; }
 
   // ── State ───────────────────────────────────────────────────
-  var state = { program: [], pt: emptyPt(), snaps: {}, favs: {} };
+  var state = { program: [], pt: emptyPt(), snaps: {}, favs: {}, myLib: {}, edits: {}, handout: defaultHandout() };
+
+  function defaultHandout() {
+    return { clinic: '', phone: '', line: '', logo: '', layout: 'detailed', photos: true, log: false };
+  }
   var ui = { cat: 'All', search: '', shown: PAGE, filtered: [], detailId: null, photoTarget: null };
 
   function emptyPt() {
@@ -64,6 +85,9 @@
         state.pt = Object.assign(emptyPt(), d.pt || {});
         state.snaps = d.snaps || {};
         state.favs = d.favs || {};
+        state.myLib = d.myLib || {};
+        state.edits = d.edits || {};
+        state.handout = Object.assign(defaultHandout(), d.handout || {});
         return;
       }
       // Pick up data saved by the original single-file builder, if it ran on this origin.
@@ -122,7 +146,7 @@
 
   // ── Category chips ──────────────────────────────────────────
   var CATS = [];
-  LIBRARY.forEach(function (e) { if (CATS.indexOf(e.cat) < 0) CATS.push(e.cat); });
+  BASE.forEach(function (e) { if (CATS.indexOf(e.cat) < 0) CATS.push(e.cat); });
 
   function renderChips() {
     var counts = {};
@@ -131,6 +155,7 @@
     var html = chip('All', 'All', LIBRARY.length) +
       '<button class="chip fav-chip' + (ui.cat === 'Favorites' ? ' active' : '') + '" data-cat="Favorites" role="tab">' +
       icon('star') + 'Favorites<span class="count">' + favCount + '</span></button>';
+    if (counts[MY_CAT]) html += chip(MY_CAT, MY_CAT, counts[MY_CAT]);
     CATS.forEach(function (c) { html += chip(c, c.replace(' & Womens Health', '').replace(' & Plyometric', ''), counts[c]); });
     $('chips').innerHTML = html;
     function chip(cat, label, n) {
@@ -176,7 +201,8 @@
     return '<div class="ex-row' + (added ? ' added' : '') + '" data-id="' + ex.id + '">' +
       (hasPhoto ? '<button class="ex-thumb" data-act="detail" title="View details">' + photo(ex) + '</button>'
                 : '<span class="cat-bar" style="background:' + (CAT_COLORS[ex.cat] || '#888') + '"></span>') +
-      '<div class="ex-body"><div class="ex-name">' + esc(ex.name) + '</div>' +
+      '<div class="ex-body"><div class="ex-name">' + esc(ex.name) +
+        (ex.edited ? ' <span class="tag">edited</span>' : '') + '</div>' +
         '<div class="ex-meta">' + esc(ex.pos) + ' · ' + esc(doseLine(ex)) + '</div></div>' +
       '<div class="ex-actions">' +
         '<button class="icon-btn" data-act="detail" title="Details and photo">' + icon('info') + '</button>' +
@@ -271,8 +297,9 @@
     if (inProgram(id)) return;
     var ex = BY_ID[id];
     state.program.push({
-      id: ex.id, name: ex.name, cat: ex.cat, pos: ex.pos,
-      sets: ex.sets, reps: ex.reps, hold: ex.hold, freq: ex.freq, instr: ex.instr, note: ''
+      id: ex.id, name: ex.name, cat: ex.cat, pos: ex.pos, custom: ex.cat === MY_CAT || undefined,
+      sets: ex.sets, reps: ex.reps, hold: ex.hold, freq: ex.freq, side: ex.side || '—', equip: ex.equip || '—',
+      instr: ex.instr, note: ''
     });
     store();
     refreshRow(id);
@@ -284,7 +311,7 @@
     var id = 'custom' + Date.now();
     state.program.push({
       id: id, name: '', cat: 'Custom', pos: 'As instructed', custom: true,
-      sets: 3, reps: '10', hold: '—', freq: 'Daily', instr: '', note: ''
+      sets: 3, reps: '10', hold: '—', freq: 'Daily', side: '—', equip: '—', instr: '', note: ''
     });
     store();
     renderProgram();
@@ -324,13 +351,15 @@
   }
 
   function combo(id, field, value) {
+    if (value == null || value === '') value = '—';
+    var steps = field !== 'side' && field !== 'equip';
     var opts = PARAM_OPTS[field].map(function (o) {
       return '<div class="combo-opt' + (String(o) === String(value) ? ' active' : '') + '" data-val="' + esc(o) + '">' + esc(o) + '</div>';
     }).join('');
-    return '<div class="combo" data-id="' + id + '" data-field="' + field + '">' +
-      '<button type="button" class="combo-step" data-step="-1" tabindex="-1" aria-label="Decrease ' + field + '">' + icon('minus') + '</button>' +
-      '<input value="' + esc(value) + '" data-field="' + field + '" aria-label="' + field + '">' +
-      '<button type="button" class="combo-step" data-step="1" tabindex="-1" aria-label="Increase ' + field + '">' + icon('plus') + '</button>' +
+    return '<div class="combo' + (steps ? '' : ' no-steps') + '" data-id="' + id + '" data-field="' + field + '">' +
+      (steps ? '<button type="button" class="combo-step" data-step="-1" tabindex="-1" aria-label="Decrease ' + field + '">' + icon('minus') + '</button>' : '') +
+      '<input value="' + esc(value) + '" data-field="' + field + '" aria-label="' + FIELD_LABELS[field] + '">' +
+      (steps ? '<button type="button" class="combo-step" data-step="1" tabindex="-1" aria-label="Increase ' + field + '">' + icon('plus') + '</button>' : '') +
       '<button type="button" class="combo-arrow" tabindex="-1" aria-label="Choose ' + field + '">' + icon('down') + '</button>' +
       '<div class="combo-menu">' + opts + '</div></div>';
   }
@@ -362,6 +391,7 @@
             '<div class="ptitle">' + title +
               '<div class="sub"><span class="dot" style="background:' + (CAT_COLORS[p.cat] || '#888') + '"></span>' + esc(p.cat) + ' · ' + esc(p.pos) + '</div></div>' +
             '<div class="pbtns">' +
+              (p.custom && !state.myLib[p.id] ? '<button class="btn btn-ghost btn-sm add-photo" data-act="save-lib" title="Keep this exercise in your library">' + icon('bookmark') + '<span>Save to library</span></button>' : '') +
               (hasPhoto ? '' : '<button class="btn btn-ghost btn-sm add-photo" data-act="photo" title="Add your own photo">' + icon('camera') + '<span>Add photo</span></button>') +
               '<button class="icon-btn drag-handle" draggable="true" title="Drag to reorder">' + icon('grip') + '</button>' +
               '<button class="icon-btn" data-act="up" title="Move up"' + (i === 0 ? ' disabled' : '') + '>' + icon('up') + '</button>' +
@@ -374,6 +404,8 @@
             '<div class="param"><label>Reps / time</label>' + combo(p.id, 'reps', p.reps) + '</div>' +
             '<div class="param"><label>Hold</label>' + combo(p.id, 'hold', p.hold) + '</div>' +
             '<div class="param"><label>Frequency</label>' + combo(p.id, 'freq', p.freq) + '</div>' +
+            '<div class="param"><label>Side</label>' + combo(p.id, 'side', p.side) + '</div>' +
+            '<div class="param"><label>Equipment</label>' + combo(p.id, 'equip', p.equip) + '</div>' +
           '</div>' +
           '<div class="pextra">' +
             '<div><span class="field-label">How to perform</span><div class="with-mic">' +
@@ -431,6 +463,7 @@
     if (!act) return;
     if (act.dataset.act === 'photo') { e.stopPropagation(); return openPhotoPicker(id); }
     if (act.dataset.act === 'detail') return openDetail(id);
+    if (act.dataset.act === 'save-lib') return saveToLibrary(id);
     if (act.dataset.act === 'up') return moveExercise(idx, idx - 1);
     if (act.dataset.act === 'down') return moveExercise(idx, idx + 1);
     if (act.dataset.act === 'remove') return removeExercise(id);
@@ -513,7 +546,7 @@
   function removePhoto(id) {
     Photos.remove(id).then(function () {
       afterPhotoChange(id);
-      toast('Photo removed. Showing the illustration again.');
+      toast('Photo removed');
     });
   }
   // ── Free photos (free-exercise-db, public domain) ───────────
@@ -619,7 +652,7 @@
   });
 
   function openDetail(id) {
-    var ex = exById(id), p = progItem(id) || ex, inLib = !!BY_ID[id];
+    var ex = exById(id), inLib = !!BY_ID[id], p = inLib ? BY_ID[id] : ex;  // show library defaults
     var added = inProgram(id), fav = !!state.favs[id], hasPhoto = !!Photos.url(id);
     ui.detailId = id;
     openModal(
@@ -634,6 +667,8 @@
           '<div><span>Reps</span><strong>' + esc(p.reps) + '</strong></div>' +
           '<div><span>Hold</span><strong>' + esc(p.hold) + '</strong></div>' +
           '<div><span>Frequency</span><strong>' + esc(p.freq) + '</strong></div>' +
+          (isSet(p.side) ? '<div><span>Side</span><strong>' + esc(p.side) + '</strong></div>' : '') +
+          (isSet(p.equip) ? '<div><span>Equipment</span><strong>' + esc(p.equip) + '</strong></div>' : '') +
         '</div>' +
         '<p class="instr">' + esc(p.instr) + '</p>' +
         '<p class="photo-note">' + (hasPhoto
@@ -643,62 +678,214 @@
       '<div class="modal-foot">' +
         (hasPhoto ? '<button class="btn btn-danger-ghost" id="d-rm-photo">' + icon('trash') + 'Remove photo</button>' : '') +
         '<button class="btn btn-ghost" id="d-photo">' + icon('camera') + (hasPhoto ? 'Replace photo' : 'Add photo') + '</button>' +
-        (inLib ? '<button class="btn btn-ghost" id="d-fav">' + icon('star') + (fav ? 'Unfavorite' : 'Favorite') + '</button>' +
+        (inLib ? '<button class="btn btn-ghost" id="d-edit">' + icon('edit') + 'Edit</button>' +
+          '<button class="btn btn-ghost" id="d-fav">' + icon('star') + (fav ? 'Unfavorite' : 'Favorite') + '</button>' +
           '<button class="btn ' + (added ? '' : 'btn-primary') + '" id="d-add">' + icon(added ? 'x' : 'plus') + (added ? 'Remove from program' : 'Add to program') + '</button>' : '') +
       '</div>');
     $('d-photo').onclick = function () { openPhotoPicker(id); };
     if (inLib) {
+      $('d-edit').onclick = function () { openEditor(id); };
       $('d-fav').onclick = function () { toggleFav(id); };
       $('d-add').onclick = function () { added ? removeExercise(id) : addExercise(id); openDetail(id); };
     }
     if (hasPhoto) $('d-rm-photo').onclick = function () { removePhoto(id); };
   }
 
-  // ── Saved programs ──────────────────────────────────────────
+  // ── Your library: save custom exercises, edit defaults ──────
+  var EDIT_FIELDS = ['name', 'pos', 'sets', 'reps', 'hold', 'freq', 'side', 'equip', 'instr'];
+  function libraryRefresh() {
+    rebuildLibrary();
+    renderChips();
+    var top = $('ex-list').scrollTop, shown = ui.shown;
+    filterLibrary();
+    ui.shown = shown;
+    renderLibrary();
+    $('ex-list').scrollTop = top;
+  }
+
+  function saveToLibrary(id) {
+    var p = progItem(id);
+    if (!p) return;
+    if (!(p.name || '').trim()) {
+      toast('Give the exercise a name first.');
+      var t = progList.querySelector('.pcard[data-id="' + id + '"] .title-input');
+      if (t) t.focus();
+      return;
+    }
+    var ex = { id: id, cat: MY_CAT };
+    EDIT_FIELDS.forEach(function (f) { ex[f] = p[f] == null ? '' : p[f]; });
+    state.myLib[id] = ex;
+    p.cat = MY_CAT;
+    store();
+    libraryRefresh();
+    renderProgram();
+    toast('Saved “' + p.name + '” to My exercises');
+  }
+
+  function openEditor(id) {
+    var ex = BY_ID[id];
+    if (!ex) return;
+    var mine = !!state.myLib[id], p = progItem(id);
+    ui.detailId = null;
+    function field(f, label, wide) {
+      var list = PARAM_OPTS[f] ? ' list="dl-' + f + '"' : '';
+      return '<div class="field' + (wide ? ' span-2' : '') + '"><label for="ed-' + f + '">' + label + '</label>' +
+        '<input class="input" id="ed-' + f + '" value="' + esc(ex[f] == null ? '' : ex[f]) + '"' + list + ' autocomplete="off"></div>';
+    }
+    var lists = Object.keys(PARAM_OPTS).map(function (f) {
+      return '<datalist id="dl-' + f + '">' + PARAM_OPTS[f].map(function (o) { return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>';
+    }).join('');
+    openModal(
+      '<div class="modal-head"><h2>' + (mine ? 'Edit your exercise' : 'Edit default settings') + '</h2>' +
+        '<button class="icon-btn" data-close title="Close">' + icon('x') + '</button></div>' +
+      '<div class="modal-body">' +
+        '<p class="muted-p">' + (mine ? 'Changes apply the next time you add this exercise.'
+          : 'Your changes replace the built-in defaults whenever you add this exercise. You can reset to the original any time.') + '</p>' +
+        (p ? '<button class="btn btn-ghost btn-sm" id="ed-from-prog" style="margin-top:8px">' + icon('download') + 'Copy settings from the current program</button>' : '') +
+        '<div class="edit-grid">' +
+          field('name', 'Name', true) + field('pos', 'Position', true) +
+          field('sets', 'Sets') + field('reps', 'Reps / time') + field('hold', 'Hold') +
+          field('freq', 'Frequency') + field('side', 'Side') + field('equip', 'Equipment') +
+          '<div class="field span-2"><label for="ed-instr">How to perform</label>' +
+            '<textarea class="textarea" id="ed-instr" rows="5">' + esc(ex.instr) + '</textarea></div>' +
+        '</div>' + lists +
+      '</div>' +
+      '<div class="modal-foot">' +
+        (mine ? '<button class="btn btn-danger-ghost" id="ed-delete" style="margin-right:auto">' + icon('trash') + 'Delete from library</button>'
+          : ex.edited ? '<button class="btn btn-danger-ghost" id="ed-reset" style="margin-right:auto">Reset to original</button>' : '') +
+        '<button class="btn btn-ghost" data-close>Cancel</button>' +
+        '<button class="btn btn-primary" id="ed-save">' + icon('check') + 'Save</button>' +
+      '</div>', true);
+
+    if (p) $('ed-from-prog').onclick = function () {
+      EDIT_FIELDS.forEach(function (f) { if (f !== 'name' || mine) $('ed-' + f).value = p[f] == null ? '' : p[f]; });
+      toast('Copied from the current program');
+    };
+    $('ed-save').onclick = function () {
+      var vals = {};
+      EDIT_FIELDS.forEach(function (f) { vals[f] = $('ed-' + f).value.trim(); });
+      if (!vals.name) return toast('The exercise needs a name.');
+      if (mine) {
+        Object.assign(state.myLib[id], vals);
+      } else {
+        var base = BASE.find(function (e) { return e.id === id; }), diff = {};
+        EDIT_FIELDS.forEach(function (f) { if (String(base[f] == null ? '' : base[f]) !== vals[f]) diff[f] = vals[f]; });
+        if (Object.keys(diff).length) state.edits[id] = diff; else delete state.edits[id];
+      }
+      store();
+      libraryRefresh();
+      openDetail(id);
+      toast('Saved');
+    };
+    if (mine) $('ed-delete').onclick = function () {
+      if (!confirm('Delete “' + ex.name + '” from your library? It stays in any program it’s already in.')) return;
+      delete state.myLib[id];
+      if (p) p.cat = 'Custom';
+      store();
+      libraryRefresh();
+      renderProgram();
+      closeModal();
+      toast('Deleted from your library');
+    };
+    else if (ex.edited) $('ed-reset').onclick = function () {
+      delete state.edits[id];
+      store();
+      libraryRefresh();
+      openDetail(id);
+      toast('Reset to the original');
+    };
+  }
+
+  // ── Templates & saved programs ──────────────────────────────
+  // A template holds exercises (and optional instructions) without patient
+  // details, and is usually added on top of the current program. A saved
+  // program also keeps the patient details and is loaded in place.
   function openPrograms() {
-    var keys = Object.keys(state.snaps).sort(function (a, b) { return b - a; });
-    var list = keys.length ? keys.map(function (k) {
+    var keys = Object.keys(state.snaps).sort(function (a, b) {
+      var sa = state.snaps[a], sb = state.snaps[b];
+      return sa.template && sb.template ? sa.label.localeCompare(sb.label) : b - a;
+    });
+    var tpl = keys.filter(function (k) { return state.snaps[k].template; });
+    var pts = keys.filter(function (k) { return !state.snaps[k].template; });
+    function row(k) {
       var s = state.snaps[k];
       return '<div class="snap" data-key="' + k + '"><div class="snap-info"><strong>' + esc(s.label) + '</strong>' +
-        '<span>' + s.program.length + ' exercises · saved ' + new Date(+k).toLocaleDateString() + '</span></div>' +
-        '<button class="btn btn-sm" data-act="load">Load</button>' +
+        '<span>' + s.program.length + ' exercises · ' + (s.template ? 'template' : 'saved ' + new Date(+k).toLocaleDateString()) + '</span></div>' +
+        '<button class="btn btn-sm' + (s.template ? ' btn-primary' : '') + '" data-act="add" title="Add these exercises to the current program">' + icon('plus') + 'Add</button>' +
+        '<button class="btn btn-sm" data-act="load" title="Replace the current program">' + (s.template ? 'Replace' : 'Load') + '</button>' +
         '<button class="icon-btn danger" data-act="del" title="Delete">' + icon('trash') + '</button></div>';
-    }).join('') : '<p class="muted-p" style="margin-top:8px">No saved programs yet.</p>';
+    }
     openModal(
-      '<div class="modal-head"><h2>Saved programs</h2><button class="icon-btn" data-close title="Close">' + icon('x') + '</button></div>' +
+      '<div class="modal-head"><h2>Templates &amp; programs</h2><button class="icon-btn" data-close title="Close">' + icon('x') + '</button></div>' +
       '<div class="modal-body">' +
-        '<p class="muted-p">Save the current patient and exercises as a template you can load again later.</p>' +
-        '<div class="save-row" style="margin-top:12px"><input class="input" id="snap-name" placeholder="Name, e.g. “ACL phase 1”" value="' + esc(state.pt.name) + '">' +
-        '<button class="btn btn-primary" id="snap-save"' + (state.program.length ? '' : ' disabled') + '>Save</button></div>' +
-        '<div class="section-label">Saved</div><div class="snap-list" id="snap-list">' + list + '</div>' +
-      '</div>');
-    $('snap-save').onclick = function () {
-      var label = $('snap-name').value.trim() || ('Program ' + new Date().toLocaleDateString());
-      state.snaps[Date.now()] = { label: label, program: JSON.parse(JSON.stringify(state.program)), pt: Object.assign({}, state.pt) };
+        '<div class="save-row"><input class="input" id="snap-name" placeholder="Name, e.g. “TKA week 1–2”" value="' + esc(state.pt.name) + '"></div>' +
+        '<div class="save-choice">' +
+          '<button class="btn" id="snap-tpl"' + (state.program.length ? '' : ' disabled') + '>' + icon('bookmark') + 'Save as template</button>' +
+          '<button class="btn" id="snap-save"' + (state.program.length ? '' : ' disabled') + '>' + icon('folder') + 'Save patient program</button>' +
+        '</div>' +
+        '<p class="muted-p" style="margin-top:10px;font-size:12.5px">Templates keep the exercises and patient instructions, without patient details. Use <b>Add</b> to stack templates, e.g. a knee template plus a balance template.</p>' +
+        '<div class="section-label">Templates</div><div class="snap-list">' +
+          (tpl.length ? tpl.map(row).join('') : '<p class="muted-p">No templates yet. Build a program for a diagnosis or protocol, then save it as a template.</p>') + '</div>' +
+        '<div class="section-label">Saved patient programs</div><div class="snap-list">' +
+          (pts.length ? pts.map(row).join('') : '<p class="muted-p">None yet.</p>') + '</div>' +
+      '</div>', true);
+
+    function save(template) {
+      var label = $('snap-name').value.trim() || ((template ? 'Template ' : 'Program ') + new Date().toLocaleDateString());
+      var snap = { label: label, program: JSON.parse(JSON.stringify(state.program)) };
+      if (template) {
+        snap.template = true;
+        snap.instructions = state.pt.instructions || '';
+        snap.program.forEach(function (p) { p.note = ''; });  // notes are patient-specific
+      } else {
+        snap.pt = Object.assign({}, state.pt);
+      }
+      state.snaps[Date.now()] = snap;
       store();
       openPrograms();
       toast('Saved “' + label + '”');
-    };
-    $('snap-list').onclick = function (e) {
-      var b = e.target.closest('[data-act]');
+    }
+    $('snap-tpl').onclick = function () { save(true); };
+    $('snap-save').onclick = function () { save(false); };
+
+    $('modal-box').querySelector('.modal-body').addEventListener('click', function (e) {
+      var b = e.target.closest('.snap [data-act]');
       if (!b) return;
       var key = b.closest('.snap').dataset.key, s = state.snaps[key];
       if (b.dataset.act === 'del') {
         if (!confirm('Delete “' + s.label + '”?')) return;
         delete state.snaps[key];
         store();
-        openPrograms();
-      } else {
-        if (state.program.length && !confirm('Replace the current program with “' + s.label + '”?')) return;
-        state.program = JSON.parse(JSON.stringify(s.program));
-        state.pt = Object.assign(emptyPt(), s.pt);
+        return openPrograms();
+      }
+      if (b.dataset.act === 'add') {
+        var added = 0;
+        s.program.forEach(function (p) {
+          if (inProgram(p.id)) return;
+          state.program.push(JSON.parse(JSON.stringify(p)));
+          added++;
+        });
+        var instr = (s.template ? s.instructions : s.pt && s.pt.instructions) || '';
+        if (instr.trim() && (state.pt.instructions || '').indexOf(instr.trim()) < 0) {
+          state.pt.instructions = ((state.pt.instructions || '').trim() + '\n\n' + instr.trim()).trim();
+        }
         store();
         fillPatient();
         renderAll();
         closeModal();
-        toast('Loaded “' + s.label + '”');
+        return toast('Added ' + added + ' exercise' + (added === 1 ? '' : 's') + ' from “' + s.label + '”');
       }
-    };
+      // Load / replace
+      if (state.program.length && !confirm('Replace the current program with “' + s.label + '”?')) return;
+      state.program = JSON.parse(JSON.stringify(s.program));
+      if (s.template) state.pt.instructions = s.instructions || '';
+      else state.pt = Object.assign(emptyPt(), s.pt);
+      store();
+      fillPatient();
+      renderAll();
+      closeModal();
+      toast('Loaded “' + s.label + '”');
+    });
   }
 
   // ── Backup ──────────────────────────────────────────────────
@@ -706,9 +893,10 @@
     openModal(
       '<div class="modal-head"><h2>Backup &amp; restore</h2><button class="icon-btn" data-close title="Close">' + icon('x') + '</button></div>' +
       '<div class="modal-body">' +
-        '<p class="muted-p">Your programs, favorites and photos are saved only in this browser. Download a backup to keep them safe or move them to another device.</p>' +
-        '<p class="muted-p" style="margin-top:8px">This browser has <strong>' + Object.keys(state.snaps).length + '</strong> saved programs, <strong>' +
-          Object.keys(state.favs).length + '</strong> favorites and <strong>' + Photos.count() + '</strong> photos.</p>' +
+        '<p class="muted-p">Everything you save here is stored only in this browser. Download a backup to keep it safe or move it to another device.</p>' +
+        '<p class="muted-p" style="margin-top:8px">This browser has <strong>' + Object.keys(state.snaps).length + '</strong> templates and programs, <strong>' +
+          Object.keys(state.myLib).length + '</strong> of your own exercises, <strong>' +
+          Object.keys(state.favs).length + '</strong> favorites and <strong>' + Photos.count() + '</strong> photos, plus your handout settings.</p>' +
       '</div>' +
       '<div class="modal-foot">' +
         '<button class="btn" id="bk-import">' + icon('upload') + 'Restore from file</button>' +
@@ -745,6 +933,10 @@
       state.pt = Object.assign(emptyPt(), s.pt || {});
       Object.assign(state.snaps, s.snaps || {});
       Object.assign(state.favs, s.favs || {});
+      Object.assign(state.myLib, s.myLib || {});
+      Object.assign(state.edits, s.edits || {});
+      if (s.handout) state.handout = Object.assign(defaultHandout(), s.handout);
+      rebuildLibrary();
       store();
       return Photos.importAll(d.photos).then(function (n) {
         fillPatient();
@@ -859,9 +1051,96 @@
     try { r.start(); } catch (err) { stopListening(); }
   });
 
+  // ── Handout settings ────────────────────────────────────────
+  function openHandoutSettings() {
+    var h = state.handout;
+    function radio(val, title, desc) {
+      return '<label class="choice"><input type="radio" name="hs-layout" value="' + val + '"' + (h.layout === val ? ' checked' : '') + '>' +
+        '<span><strong>' + title + '</strong><small>' + desc + '</small></span></label>';
+    }
+    function check(id, on, title, desc) {
+      return '<label class="choice"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '>' +
+        '<span><strong>' + title + '</strong><small>' + desc + '</small></span></label>';
+    }
+    openModal(
+      '<div class="modal-head"><h2>Handout settings</h2><button class="icon-btn" data-close title="Close">' + icon('x') + '</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="section-label" style="margin-top:4px">Clinic header</div>' +
+        '<div class="logo-row">' +
+          '<div class="logo-box" id="hs-logo-box">' + (h.logo ? '<img src="' + h.logo + '" alt="Clinic logo">' : '<span>No logo</span>') + '</div>' +
+          '<div><button class="btn btn-sm" id="hs-logo-btn">' + icon('upload') + (h.logo ? 'Change logo' : 'Upload logo') + '</button>' +
+          (h.logo ? ' <button class="btn btn-sm btn-danger-ghost" id="hs-logo-rm">Remove</button>' : '') + '</div>' +
+        '</div>' +
+        '<div class="edit-grid">' +
+          '<div class="field span-2"><label for="hs-clinic">Clinic name</label><input class="input" id="hs-clinic" value="' + esc(h.clinic) + '" placeholder="e.g. Riverside Physical Therapy"></div>' +
+          '<div class="field"><label for="hs-phone">Phone</label><input class="input" id="hs-phone" value="' + esc(h.phone) + '" placeholder="(555) 123-4567"></div>' +
+          '<div class="field"><label for="hs-line">Address or website</label><input class="input" id="hs-line" value="' + esc(h.line) + '" placeholder="Optional"></div>' +
+        '</div>' +
+        '<div class="section-label">Layout</div>' +
+        radio('detailed', 'Detailed', 'Full instructions and photos, 3 exercises per page.') +
+        radio('compact', 'Compact', 'One table with each exercise’s dosage and notes. Usually fits on one page.') +
+        '<div class="section-label">Extras</div>' +
+        check('hs-photos', h.photos, 'Include photos', 'Show your exercise photos in the detailed layout.') +
+        check('hs-log', h.log, 'Exercise log page', 'Add a check-off grid so the patient can track each day for 2 weeks.') +
+      '</div>' +
+      '<div class="modal-foot"><button class="btn btn-ghost" data-close>Cancel</button>' +
+        '<button class="btn btn-primary" id="hs-save">' + icon('check') + 'Save</button></div>', true);
+
+    var logo = h.logo;
+    $('hs-logo-btn').onclick = function () {
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/*';
+      inp.onchange = function () {
+        if (!inp.files[0]) return;
+        shrinkLogo(inp.files[0]).then(function (url) {
+          logo = url;
+          $('hs-logo-box').innerHTML = '<img src="' + url + '" alt="Clinic logo">';
+        }).catch(function () { toast('That file couldn’t be read as an image.'); });
+      };
+      inp.click();
+    };
+    if (h.logo) $('hs-logo-rm').onclick = function () { logo = ''; $('hs-logo-box').innerHTML = '<span>No logo</span>'; };
+    $('hs-save').onclick = function () {
+      state.handout = {
+        clinic: $('hs-clinic').value.trim(), phone: $('hs-phone').value.trim(), line: $('hs-line').value.trim(), logo: logo,
+        layout: document.querySelector('input[name="hs-layout"]:checked').value,
+        photos: $('hs-photos').checked, log: $('hs-log').checked
+      };
+      store();
+      closeModal();
+      toast('Handout settings saved');
+    };
+  }
+
+  // Logos are small; keep them as a data URL (max 480px wide, PNG keeps transparency).
+  function shrinkLogo(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image(), src = URL.createObjectURL(file);
+      img.onload = function () {
+        URL.revokeObjectURL(src);
+        var scale = Math.min(1, 480 / img.naturalWidth, 160 / img.naturalHeight);
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * scale);
+        c.height = Math.round(img.naturalHeight * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/png'));
+      };
+      img.onerror = function () { URL.revokeObjectURL(src); reject(); };
+      img.src = src;
+    });
+  }
+
   // ── Print ───────────────────────────────────────────────────
+  function doseCells(p) {
+    var cells = [['Sets', p.sets], ['Reps / time', p.reps], ['Hold', p.hold], ['Frequency', p.freq]];
+    if (isSet(p.side)) cells.push(['Side', p.side]);
+    if (isSet(p.equip)) cells.push(['Equipment', p.equip]);
+    return cells;
+  }
+
   function buildPrintView() {
-    var pt = state.pt, date = '';
+    var pt = state.pt, h = state.handout, date = '';
     if (pt.date) {
       try { date = new Date(pt.date + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); }
       catch (e) { date = pt.date; }
@@ -872,31 +1151,60 @@
     if (pt.therapist) meta.push('<b>PT:</b> ' + esc(pt.therapist));
     if (pt.dx) meta.push('<b>Dx:</b> ' + esc(pt.dx));
 
-    var html = '<div class="pv-head"><h1>Home Exercise Program</h1>' +
+    var clinic = h.logo || h.clinic || h.phone || h.line
+      ? '<div class="pv-clinic">' + (h.logo ? '<img src="' + h.logo + '" alt="">' : '') +
+          '<div>' + (h.clinic ? '<strong>' + esc(h.clinic) + '</strong>' : '') +
+          [h.phone, h.line].filter(Boolean).map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div></div>'
+      : '';
+    var html = '<div class="pv-head">' + clinic + '<h1>Home Exercise Program</h1>' +
       (meta.length ? '<div class="pv-meta">' + meta.join(' &nbsp;·&nbsp; ') + '</div>' : '') + '</div>';
     if ((pt.instructions || '').trim()) {
       html += '<div class="pv-instr"><h2>Instructions</h2><div>' + esc(pt.instructions.trim()) + '</div></div>';
     }
-    // Three exercises per page. Instructions take room on page one, so it holds
-    // two (or one, for long instructions).
-    var n = state.program.length, instrLen = (pt.instructions || '').trim().length;
-    var first = instrLen > 400 ? 1 : instrLen > 0 ? 2 : 3;
-    state.program.forEach(function (p, i) {
-      var k = i + 1;
-      var brk = i < n - 1 && (k === first || (k > first && (k - first) % 3 === 0));
-      var img = photo(p);
-      html += '<section class="pv-ex' + (img ? ' with-img' : '') + (brk ? ' break' : '') + '">' +
-        (img ? '<div class="pv-img">' + img + '</div>' : '') +
-        '<div><h3><span>' + (i + 1) + '</span>' + esc(p.name || 'Custom exercise') + '</h3>' +
-        '<div class="pv-pos">' + esc(p.pos) + '</div>' +
-        '<div class="pv-dose"><div><span>Sets</span><strong>' + esc(p.sets) + '</strong></div>' +
-          '<div><span>Reps / time</span><strong>' + esc(p.reps) + '</strong></div>' +
-          '<div><span>Hold</span><strong>' + esc(p.hold) + '</strong></div>' +
-          '<div><span>Frequency</span><strong>' + esc(p.freq) + '</strong></div></div>' +
-        '<div class="pv-text">' + esc(p.instr) + '</div>' +
-        ((p.note || '').trim() ? '<div class="pv-note"><b>Note from your PT</b>' + esc(p.note.trim()) + '</div>' : '') +
-        '</div></section>';
-    });
+
+    var n = state.program.length;
+    if (h.layout === 'compact') {
+      html += '<table class="pv-table"><thead><tr><th>#</th><th>Exercise</th><th>Sets</th><th>Reps / time</th><th>Hold</th><th>Frequency</th><th>Side / equipment</th></tr></thead><tbody>' +
+        state.program.map(function (p, i) {
+          var extra = [p.side, p.equip].filter(isSet).join(' · ');
+          return '<tr><td>' + (i + 1) + '</td><td><strong>' + esc(p.name || 'Custom exercise') + '</strong><span class="pv-pos">' + esc(p.pos) + '</span>' +
+            ((p.note || '').trim() ? '<span class="pv-tnote">' + esc(p.note.trim()) + '</span>' : '') + '</td>' +
+            '<td>' + esc(p.sets) + '</td><td>' + esc(p.reps) + '</td><td>' + esc(isSet(p.hold) ? p.hold : '—') + '</td><td>' + esc(p.freq) + '</td><td>' + esc(extra || '—') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    } else {
+      // Three exercises per page. Instructions take room on page one, so it holds
+      // two (or one, for long instructions).
+      var instrLen = (pt.instructions || '').trim().length;
+      var first = instrLen > 400 ? 1 : instrLen > 0 ? 2 : 3;
+      state.program.forEach(function (p, i) {
+        var k = i + 1;
+        var brk = i < n - 1 && (k === first || (k > first && (k - first) % 3 === 0));
+        var img = h.photos ? photo(p) : '';
+        html += '<section class="pv-ex' + (img ? ' with-img' : '') + (brk ? ' break' : '') + '">' +
+          (img ? '<div class="pv-img">' + img + '</div>' : '') +
+          '<div><h3><span>' + (i + 1) + '</span>' + esc(p.name || 'Custom exercise') + '</h3>' +
+          '<div class="pv-pos">' + esc(p.pos) + '</div>' +
+          '<div class="pv-dose">' + doseCells(p).map(function (c) {
+            return '<div><span>' + c[0] + '</span><strong>' + esc(c[1]) + '</strong></div>';
+          }).join('') + '</div>' +
+          '<div class="pv-text">' + esc(p.instr) + '</div>' +
+          ((p.note || '').trim() ? '<div class="pv-note"><b>Note from your PT</b>' + esc(p.note.trim()) + '</div>' : '') +
+          '</div></section>';
+      });
+    }
+
+    if (h.log && n) {
+      var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      html += '<section class="pv-log"><h2>Exercise log</h2><p>Check off each exercise when you complete it. Bring this sheet to your next visit.</p>';
+      [1, 2].forEach(function (w) {
+        html += '<table class="pv-table pv-logt"><thead><tr><th class="wk">Week ' + w + ' &nbsp;—&nbsp; starting ____/____</th>' +
+          days.map(function (d) { return '<th>' + d + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          state.program.map(function (p, i) {
+            return '<tr><td>' + (i + 1) + '. ' + esc(p.name || 'Custom exercise') + '</td>' + days.map(function () { return '<td class="box"></td>'; }).join('') + '</tr>';
+          }).join('') + '</tbody></table>';
+      });
+      html += '</section>';
+    }
     $('print-view').innerHTML = html;
   }
   $('btn-print').addEventListener('click', function () {
@@ -914,6 +1222,7 @@
   $('btn-programs').addEventListener('click', openPrograms);
   $('btn-save-quick').addEventListener('click', openPrograms);
   $('btn-backup').addEventListener('click', openBackup);
+  $('btn-handout').addEventListener('click', openHandoutSettings);
 
   function applyTheme(t) {
     if (t) document.documentElement.setAttribute('data-theme', t);
@@ -948,6 +1257,7 @@
   }
 
   load();
+  rebuildLibrary();
   if (!state.pt.date) state.pt.date = today();
   fillPatient();
   try { if (localStorage.getItem('hep_instr_open')) { $('instr-card').classList.add('open'); $('instr-toggle').setAttribute('aria-expanded', 'true'); } } catch (e) {}
